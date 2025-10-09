@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lights Out Puzzle</title>
+  <style>
+    body {
+      background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+      color: #fff;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      text-align: center;
+    }
+    h1 {
+      margin-bottom: 1rem;
+      color: #e040fb;
+      text-shadow: 0 0 20px #e040fb, 0 0 40px #00e5ff;
+      letter-spacing: 2px;
+      font-size: 2.5rem;
+      animation: glow 2s infinite alternate;
+    }
+    @keyframes glow {
+      from { text-shadow: 0 0 20px #e040fb, 0 0 40px #00e5ff; }
+      to   { text-shadow: 0 0 40px #f071f2, 0 0 60px #00c9e6; }
+    }
+    .board {
+      display: grid;
+      grid-template-columns: repeat(5, 60px);
+      grid-template-rows: repeat(5, 60px);
+      gap: 10px;
+      margin-bottom: 1.5rem;
+      background: rgba(224, 64, 251, 0.08);
+      border-radius: 20px;
+      box-shadow: 0 4px 32px rgba(224, 64, 251, 0.2);
+      padding: 15px;
+    }
+    .cell {
+      width: 60px;
+      height: 60px;
+      background: rgba(51, 51, 51, 0.95);
+      border-radius: 12px;
+      cursor: pointer;
+      transition: background-color 0.2s, box-shadow 0.2s;
+      box-shadow: 0 2px 12px #00000055;
+      border: 2px solid transparent;
+    }
+    .cell.is-on {
+      background-color: var(--light-color, #e040fb);
+      box-shadow: 0 0 15px var(--light-color, #e040fb), 0 0 25px var(--light-color, #e040fb);
+    }
+    .board.game-over .cell {
+      cursor: default;
+    }
+    .game-info {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 370px; /* Matches board width */
+      margin-bottom: 1.2rem;
+    }
+    .moves {
+      font-size: 1.1rem;
+      background: rgba(255, 255, 255, 0.1);
+      padding: 0.4rem 0.8rem;
+      border-radius: 8px;
+    }
+    .status {
+      font-size: 1.3rem;
+      color: #ffd700;
+      text-shadow: 0 0 10px #ffd70088;
+      font-weight: bold;
+      letter-spacing: 1px;
+    }
+    .reset-btn {
+      padding: 0.8rem 2.2rem;
+      font-size: 1.1rem;
+      border: none;
+      border-radius: 10px;
+      background: linear-gradient(90deg, #e040fb 0%, #00e5ff 100%);
+      color: #111;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 2px 12px rgba(224, 64, 251, 0.35);
+      transition: background 0.3s, color 0.3s, transform 0.2s;
+      margin-top: 0.5rem;
+    }
+    .reset-btn:hover {
+      background: linear-gradient(90deg, #f071f2 0%, #00c9e6 100%);
+      color: #fff;
+      transform: scale(1.07);
+    }
+    .game-controls {
+      display: flex;
+      gap: 1rem;
+      margin-top: 0.5rem;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: center;
+    }
+    @media (max-width: 600px) {
+      .board {
+        grid-template-columns: repeat(5, 45px);
+        grid-template-rows: repeat(5, 45px);
+        gap: 8px;
+        padding: 10px;
+      }
+      .cell {
+        width: 45px;
+        height: 45px;
+        border-radius: 8px;
+      }
+      h1 {
+        font-size: 1.8rem;
+      }
+      .game-info {
+        width: 273px; /* Matches mobile board width */
+      }
+    }
+    /* --- Color Picker Styles --- */
+    .color-picker {
+      display: flex;
+      gap: 0.8rem;
+      align-items: center;
+      background: rgba(255, 255, 255, 0.1);
+      padding: 0.4rem 0.8rem;
+      border-radius: 20px;
+    }
+    .color-swatch {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: 2px solid transparent;
+      cursor: pointer;
+      transition: transform 0.2s, border-color 0.2s;
+      padding: 0;
+    }
+    .color-swatch.active {
+      border-color: #fff;
+    }
+    /* --- Rules Modal Styles --- */
+    .rules-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+      z-index: 100;
+    }
+    .rules-modal.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .rules-content {
+      background: #1a1a2e;
+      padding: 2rem;
+      border-radius: 15px;
+      max-width: 500px;
+      width: 90%;
+      border: 1px solid #e040fb;
+      box-shadow: 0 0 25px rgba(224, 64, 251, 0.25);
+      position: relative;
+      text-align: left; /* Align content to the left */
+      transform: scale(0.9);
+      transition: transform 0.3s ease;
+    }
+    .rules-modal.visible .rules-content {
+      transform: scale(1);
+    }
+    .rules-content h2 {
+      color: #e040fb;
+      text-align: center; /* Center the heading */
+    }
+    .rules-content p, .rules-content li { line-height: 1.6; }
+    .close-rules-btn {
+      position: absolute;
+      top: 10px;
+      right: 15px;
+      font-size: 2rem;
+      background: none;
+      border: none;
+      color: #fff;
+      cursor: pointer;
+    }
+    /* --- Win Modal & Confetti Styles --- */
+    .win-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.4s ease;
+      z-index: 101;
+    }
+    .win-modal.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .win-content {
+      background: #1a1a2e;
+      padding: 2rem 3rem;
+      border-radius: 20px;
+      text-align: center;
+      border: 2px solid #ffd700;
+      box-shadow: 0 0 30px #ffd70088;
+      transform: scale(0.8);
+      transition: transform 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+    }
+    .win-modal.visible .win-content {
+      transform: scale(1);
+    }
+    .win-content h2 {
+      color: #ffd700;
+      font-size: 2.5rem;
+      margin-bottom: 0.5rem;
+      text-shadow: 0 0 15px #ffe066;
+    }
+    .confetti-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      overflow: hidden;
+      z-index: 102;
+    }
+    .confetti {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      background-color: #f00;
+      opacity: 0;
+      animation: fall 4s linear forwards;
+    }
+    @keyframes fall {
+      0% { transform: translateY(-10vh) rotate(0deg); opacity: 1; }
+      100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+    }
+  </style>
+</head>
+<body>
+  <h1>Lights Out</h1>
+  <div class="game-info">
+    <div class="status" id="status">Turn all the lights off!</div>
+    <div class="moves" id="moves-counter">Moves: 0</div>
+  </div>
+  <div class="board" id="board"></div>
+  <div class="game-controls">
+    <button class="reset-btn">New Puzzle</button>
+    <button class="reset-btn hint-btn">Get a Hint</button>
+    <button class="reset-btn rules-btn">Rules</button>
+    <div class="color-picker">
+      <button class="color-swatch active" data-color="#e040fb" style="background-color: #e040fb;"></button>
+      <button class="color-swatch" data-color="#00e5ff" style="background-color: #00e5ff;"></button>
+      <button class="color-swatch" data-color="#f5576c" style="background-color: #f5576c;"></button>
+      <button class="color-swatch" data-color="#ffd700" style="background-color: #ffd700;"></button>
+    </div>
+  </div>
+
+  <div class="win-modal" id="win-modal">
+    <div class="win-content">
+      <h2>You Win!</h2>
+      <p>You solved it in <strong id="final-moves">0</strong> moves!</p>
+      <button class="reset-btn play-again-btn">Play Again</button>
+    </div>
+  </div>
+  <div class="confetti-container" id="confetti-container"></div>
+
+  <div class="rules-modal" id="rules-modal">
+    <div class="rules-content">
+      <button class="close-rules-btn" id="close-rules-btn">&times;</button>
+      <h2>How to Play</h2>
+      <p>The goal is to turn all the lights off. Clicking a light toggles its state and the state of its immediate neighbors (up, down, left, and right).</p>
+      <h3>Strategy ("Chasing the Lights"):</h3>
+      <ol>
+        <li>Solve the board row by row, from top to bottom.</li>
+        <li>For any light that is ON in a row, click the cell directly BELOW it in the next row.</li>
+        <li>Repeat this until only the last row may have lights on.</li>
+        <li>Solve the last row with a few final clicks.</li>
+      </ol>
+    </div>
+  </div>
+
+  <script>
+    const board = document.getElementById('board');
+    const statusDiv = document.getElementById('status');
+    const movesCounter = document.getElementById('moves-counter');
+    const resetButton = document.querySelector('.reset-btn');
+    const hintButton = document.querySelector('.hint-btn');
+    const colorPicker = document.querySelector('.color-picker');
+    const rulesButton = document.querySelector('.rules-btn');
+    const rulesModal = document.getElementById('rules-modal');
+    const closeRulesButton = document.getElementById('close-rules-btn');
+    const winModal = document.getElementById('win-modal');
+    const finalMovesSpan = document.getElementById('final-moves');
+    const playAgainButton = document.querySelector('.play-again-btn');
+    const GRID_SIZE = 5;
+
+    let lights = [];
+    let gameActive = true;
+    let moves = 0;
+
+    function createGrid() {
+      board.innerHTML = '';
+      for (let i = 0; i < GRID_SIZE * GRID_SIZE; i++) {
+        const cell = document.createElement('div');
+        cell.classList.add('cell');
+        cell.dataset.index = i;
+        board.appendChild(cell);
+      }
+    }
+
+    // --- Game Setup ---
+
+    function setupNewGame() {
+      gameActive = true;
+      board.classList.remove('game-over');
+      moves = 0;
+      updateMovesDisplay();
+      statusDiv.textContent = 'Turn all the lights off!';
+      // Start with all lights off
+      lights = Array(GRID_SIZE * GRID_SIZE).fill(false);
+
+      // Simulate a number of random presses to create a solvable puzzle
+      const presses = Math.floor(Math.random() * 10) + 5; // 5 to 14 presses
+      for (let i = 0; i < presses; i++) {
+        const randRow = Math.floor(Math.random() * GRID_SIZE);
+        const randCol = Math.floor(Math.random() * GRID_SIZE);
+        toggleLights(randRow, randCol);
+      }
+      renderBoard();
+    }
+
+    function toggleLights(row, col) {
+      toggleCell(row, col);     // The cell itself
+      toggleCell(row - 1, col); // Above
+      toggleCell(row + 1, col); // Below
+      toggleCell(row, col - 1); // Left
+      toggleCell(row, col + 1); // Right
+    }
+
+    function toggleCell(row, col) {
+      if (row >= 0 && row < GRID_SIZE && col >= 0 && col < GRID_SIZE) {
+        const index = row * GRID_SIZE + col;
+        lights[index] = !lights[index];
+      }
+    }
+
+    // --- Game Logic ---
+
+    function checkWin() {
+      const allOff = lights.every(light => !light);
+      if (allOff) {
+        statusDiv.textContent = 'You Win!';
+        gameActive = false;
+        board.classList.add('game-over');
+        finalMovesSpan.textContent = moves;
+        winModal.classList.add('visible');
+        triggerConfetti();
+      }
+    }
+
+    function renderBoard() {
+      const cells = board.querySelectorAll('.cell');
+      cells.forEach((cell, index) => {
+        cell.classList.toggle('is-on', lights[index]);
+      });
+    }
+
+    // --- Rendering and Event Handling ---
+
+    function updateMovesDisplay() {
+      movesCounter.textContent = `Moves: ${moves}`;
+    }
+    
+    board.addEventListener('click', (e) => {
+      if (!gameActive || !e.target.classList.contains('cell')) return;
+      
+      moves++;
+      updateMovesDisplay();
+
+      const index = parseInt(e.target.dataset.index);
+      const row = Math.floor(index / GRID_SIZE);
+      const col = index % GRID_SIZE;
+
+      toggleLights(row, col);
+      renderBoard();
+      checkWin();
+    });
+
+    resetButton.addEventListener('click', setupNewGame);
+
+    colorPicker.addEventListener('click', (e) => {
+      if (e.target.classList.contains('color-swatch')) {
+        const swatch = e.target;
+        // Remove active class from all swatches
+        colorPicker.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
+        // Add active class to the clicked one
+        swatch.classList.add('active');
+
+        const newColor = swatch.dataset.color;
+        document.documentElement.style.setProperty('--light-color', newColor);
+      }
+    });
+
+    hintButton.addEventListener('click', () => {
+      if (!gameActive) return;
+      // Find the first "on" light in the top four rows
+      for (let r = 0; r < GRID_SIZE - 1; r++) {
+        for (let c = 0; c < GRID_SIZE; c++) {
+          if (lights[r * GRID_SIZE + c]) {
+            // Find the cell below it and simulate a click
+            const cellBelowIndex = (r + 1) * GRID_SIZE + c;
+            const cellToClick = board.querySelector(`[data-index="${cellBelowIndex}"]`);
+            if (cellToClick) {
+              cellToClick.click();
+              return; // Give only one hint at a time
+            }
+          }
+        }
+      }
+    });
+
+    rulesButton.addEventListener('click', () => rulesModal.classList.add('visible'));
+    closeRulesButton.addEventListener('click', () => rulesModal.classList.remove('visible'));
+    rulesModal.addEventListener('click', (e) => {
+      if (e.target === rulesModal) { // Close if clicking on the overlay
+        rulesModal.classList.remove('visible');
+      }
+    });
+
+    playAgainButton.addEventListener('click', () => {
+      winModal.classList.remove('visible');
+      setupNewGame();
+    });
+
+    function triggerConfetti() {
+      const confettiContainer = document.getElementById('confetti-container');
+      confettiContainer.innerHTML = '';
+      const colors = ['#e040fb', '#00e5ff', '#f5576c', '#ffd700', '#f071f2'];
+      for (let i = 0; i < 100; i++) {
+        const confetti = document.createElement('div');
+        confetti.classList.add('confetti');
+        confetti.style.left = `${Math.random() * 100}vw`;
+        confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+        confetti.style.animationDelay = `${Math.random() * 2}s`;
+        confetti.style.width = `${Math.random() * 10 + 5}px`;
+        confetti.style.height = confetti.style.width;
+        confetti.style.opacity = Math.random() + 0.2;
+        confettiContainer.appendChild(confetti);
+      }
+      setTimeout(() => {
+        confettiContainer.innerHTML = '';
+      }, 4000); // Clear confetti after animation
+    }
+
+    // --- Initial Load ---
+    createGrid();
+    document.documentElement.style.setProperty('--light-color', '#e040fb'); // Set default color
+    setupNewGame();
+  </script>
+</body>
+</html>
